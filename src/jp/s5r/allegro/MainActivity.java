@@ -16,6 +16,10 @@ import org.apache.http.params.HttpParams;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -236,10 +240,10 @@ public class MainActivity extends ListActivity {
     class ApkInfo {
         String title;
         URI uri;
-        long fileSize;
-        Date lastModified;
+        String fileSize;
+        String lastModified;
 
-        public ApkInfo(String title, URI uri, long fileSize, Date lastModified) {
+        public ApkInfo(String title, URI uri, String fileSize, String lastModified) {
             this.title = title;
             this.uri = uri;
             this.fileSize = fileSize;
@@ -312,16 +316,16 @@ public class MainActivity extends ListActivity {
             holder.tvAppName.setText(info.title);
 
             // 前回取得したパッケージの最終更新日
-            long lastModified = mPreferences.getLong(info.uri.toString(), 0);
-            if (lastModified < info.lastModified.getTime()) {
-                holder.tvStatus.setText("new!");
-                mPreferences.edit().putLong(info.uri.toString(), info.lastModified.getTime()).commit();
-            } else {
+//            long lastModified = mPreferences.getLong(info.uri.toString(), 0);
+//            if (lastModified < info.lastModified.getTime()) {
+//                holder.tvStatus.setText("new!");
+//                mPreferences.edit().putLong(info.uri.toString(), info.lastModified.getTime()).commit();
+//            } else {
                 holder.tvStatus.setText("");
-            }
+//            }
 
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            holder.tvInfo.setText(getReadableBytes(info.fileSize) + ", " + sdf.format(info.lastModified));
+//            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            holder.tvInfo.setText(/*getReadableBytes(*/info.fileSize/*)*/ + ", " + /*sdf.format(*/info.lastModified/*)*/);
 
             return view;
         }
@@ -380,9 +384,27 @@ public class MainActivity extends ListActivity {
 
         @Override
         protected void onPostExecute(String body) {
+        	if(body == null) return;
             mAdapter.clear();
 
-            try {
+            Document document = Jsoup.parse(body);
+		    Elements files = document.getElementsByClass("browse-file");
+		    for(Element f:files){
+//		    	System.out.println(f.toString());
+		    	try{
+			    	String link = f.getElementsByClass("filename-link").first().attr("href");
+			    	String size = f.getElementsByClass("size").first().ownText();
+			    	String time = f.getElementsByClass("modified-time").first().ownText();
+			    	String fn = link.substring(link.lastIndexOf("/")+1);
+			    	if(!link.endsWith(".apk")) continue;
+	                mAdapter.add(new ApkInfo(fn, URI.create(link+"?dl=1"), size, time));
+//			    	System.out.println(link);
+		    	}catch(Exception e){
+		    		e.printStackTrace();
+		    	}
+		    }
+            
+/*            try {
                 JSONArray json = new JSONArray();
                 if (body != null) {
                     json = new JSONArray(body);
@@ -417,7 +439,7 @@ public class MainActivity extends ListActivity {
                 }
             } catch (JSONException e) {
                 toast(e.getClass().getSimpleName());
-            }
+            }*/
 
             mAdapter.notifyDataSetChanged();
         }
@@ -448,17 +470,17 @@ public class MainActivity extends ListActivity {
             HttpGet method = new HttpGet(uris[0]);
             DefaultHttpClient client = null;
 
-            String username = mPreferences.getString("username", null);
-            String password = mPreferences.getString("password", null);
+//            String username = mPreferences.getString("username", null);
+//            String password = mPreferences.getString("password", null);
 
             try {
                 client = createHttpClient();
 
-                if (username != null && !username.equals("") && password != null && !password.equals("")) {
-                    UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(username, password);
-                    AuthScope scope = new AuthScope(method.getURI().getHost(), method.getURI().getPort());
-                    client.getCredentialsProvider().setCredentials(scope, credentials);
-                }
+//                if (username != null && !username.equals("") && password != null && !password.equals("")) {
+//                    UsernamePasswordCredentials credentials = new UsernamePasswordCredentials(username, password);
+//                    AuthScope scope = new AuthScope(method.getURI().getHost(), method.getURI().getPort());
+//                    client.getCredentialsProvider().setCredentials(scope, credentials);
+//                }
 
                 HttpResponse response = client.execute(method);
 
